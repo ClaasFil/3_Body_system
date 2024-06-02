@@ -1,14 +1,24 @@
 #!/bin/bash
 
 # Set the directory for the compiled modules and program
-BIN_DIR="bin"
+BIN_DIR="/home/fillies/Documents/Uni_Projects/3_Body_system/bin"
+
+# Compiler and flags
+FC="gfortran"
+FFLAGS="-O2"
+NETCDF_LIB="/usr/lib/x86_64-linux-gnu"  # Adjust as necessary
+NETCDF_INC="/usr/include"               # Adjust as necessary
+
+# Source and helper directories
+SRC_DIR="/home/fillies/Documents/Uni_Projects/3_Body_system/src/fortran"
+HELPER_DIR="$SRC_DIR/helper"
 
 # Ensure the bin directory exists
 mkdir -p $BIN_DIR
 
 # Compile the main program
 echo "Compiling the main program..."
-gfortran -c -J$BIN_DIR src/fortran/main.f90 -o $BIN_DIR/main.o
+$FC $FFLAGS -I$NETCDF_INC -J$BIN_DIR -c $SRC_DIR/main.f90 -o $BIN_DIR/main.o
 
 # Check if main program compiled successfully
 if [ $? -ne 0 ]; then
@@ -17,8 +27,8 @@ if [ $? -ne 0 ]; then
 fi
 
 # Link the main object file to create the executable
-echo "Linking object file to create executable..."
-gfortran $BIN_DIR/main.o -o $BIN_DIR/main
+echo "Linking object files to create executable..."
+$FC $FFLAGS -o $BIN_DIR/main $BIN_DIR/main.o -L$NETCDF_LIB -lnetcdf -lnetcdff
 
 # Check if linking was successful
 if [ $? -ne 0 ]; then
@@ -30,7 +40,7 @@ echo "Compilation and linking completed successfully :0"
 
 # Execute the program
 echo "Running the program..."
-./$BIN_DIR/main
+$BIN_DIR/main
 
 # Check if the program ran successfully
 if [ $? -ne 0 ]; then
