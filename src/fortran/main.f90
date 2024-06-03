@@ -90,6 +90,44 @@ end module netcdf_writer
 
 
 
+module namelist_utilities
+    implicit none
+
+    contains
+
+    
+    subroutine read_namelist(file_path, n_max, dt, nsteps, outfile, objectfile)
+        use, intrinsic :: iso_fortran_env, only: stderr => error_unit
+        character(len=*), intent(in)    :: file_path
+        integer,          intent(inout) :: n_max
+        real(8),          intent(inout) :: dt
+        integer,          intent(inout) :: nsteps
+        character(len=*), intent(inout) :: outfile, objectfile
+        integer :: fu, rc
+    
+        ! Namelist definition.
+        namelist /INPUTS/ n_max, dt, nsteps, outfile, objectfile
+    
+        ! Check whether file exists.
+        inquire (file=file_path, iostat=rc)
+        if (rc /= 0) then
+            write (stderr, '("Error: input file ", a, " does not exist")') file_path
+            return
+        end if
+    
+        ! Open and read Namelist file.
+        open (action='read', file=file_path, iostat=rc, newunit=fu)
+        read (nml=INPUTS, iostat=rc, unit=fu)
+        if (rc /= 0) write (stderr, '("Error: invalid Namelist format")')
+    
+        close (fu)
+    end subroutine read_namelist
+
+    
+
+
+end module namelist_utilities
+
 
 
 
@@ -101,24 +139,40 @@ program main
     use constants
     use object
     use netcdf_writer
+    use namelist_utilities
     implicit none
 
-    integer :: n             ! number of bodies
-    real(8), parameter :: dt = 0.00001        ! time step
+    character(len=50) :: namelistFile = "data/namelist/1big_1small.nml"
+
+    integer :: n             ! number of bodies will be determent by .xt file
+    integer :: n_max =  2  ! maximum number of objects will be set by name list
+    real(8) :: dt = 0.00001        ! time step
     real(8) :: distance_magnitude           ! distance between two bodies
     real(8), dimension(3) :: update         ! update to acceleration
     integer :: i, j, k                         ! loop variables
-    integer :: nsteps = 4000               ! number of time steps
+    integer :: nsteps = 10000               ! number of time steps
     type(Obj), allocatable :: objects(:)      ! array of objects
     character(len=50) :: outfile = "data/pos.nc"
     character(len=50) :: objectfile = "data/objects/multiyObj_test.txt"
-    character(len=50) :: namelistFile = "data/namelist/settings.nml"
     real(8), allocatable :: positions(:,:)   ! positions array for NetCDF writing
     integer :: unit
     character(len=100) :: line               ! line read from file
 
+
+    ! Read parameters from the namelist
+    call read_namelist(namelistFile, n_max, dt, nsteps, outfile, objectfile)
+
+    print *, "n_max: ", n_max
+    print *, "dt: ", dt
+    print *, "nsteps: ", nsteps
+    print *, "outfile: ", outfile
+    print *, "objectfile: ", objectfile
+
+
+
     ! Open the file to count the number of lines (i.e., objects)
     open(unit=unit, file=objectfile, status='old', action='read')
+
 
     ! Count the number of lines
     n = 0
@@ -130,6 +184,11 @@ program main
 
     ! Subtracting the header line from .txt file
     n = n - 1
+    if (n > n_max) then
+        print *, "Error: Number of objects exceeds the maximum allowed"
+        n = n_max
+    end if
+    
 
     close(unit)
 
@@ -138,7 +197,8 @@ program main
     allocate(positions(n, 3))
   
     ! Open the file containing initial conditions
-    open(unit=unit, file='data/objects/multiyObj_test.txt', status='old', action='read')
+    open(unit=unit, file=objectfile, status='old', action='read')
+  
 
     ! Read the initial conditions from the file
     do i = 1, n 
@@ -148,8 +208,6 @@ program main
     close(unit)
 
     print *, "Initializing with ", n, " objects"
-
-
 
 
 

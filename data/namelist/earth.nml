@@ -1,0 +1,7 @@
+&INPUTS
+n_max=2
+dt=0.001
+nsteps=100000
+outfile="data/1big_1small.nc"
+objectfile="data/objects/1big_1small.txt"
+/
