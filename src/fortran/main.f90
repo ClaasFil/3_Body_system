@@ -103,37 +103,51 @@ program main
     use netcdf_writer
     implicit none
 
-    integer, parameter :: n = 4             ! number of bodies
+    integer :: n             ! number of bodies
     real(8), parameter :: dt = 0.00001        ! time step
     real(8) :: distance_magnitude           ! distance between two bodies
     real(8), dimension(3) :: update         ! update to acceleration
     integer :: i, j, k                         ! loop variables
-    integer :: nsteps = 400000               ! number of time steps
-    type(Obj), dimension(n) :: objects      ! array of objects
+    integer :: nsteps = 4000               ! number of time steps
+    type(Obj), allocatable :: objects(:)      ! array of objects
     character(len=50) :: outfile = "data/pos.nc"
-    real(8), dimension(n, 3) :: positions   ! positions array for NetCDF writing
+    character(len=50) :: objectfile = "data/objects/multiyObj_test.txt"
+    character(len=50) :: namelistFile = "data/namelist/settings.nml"
+    real(8), allocatable :: positions(:,:)   ! positions array for NetCDF writing
+    integer :: unit
+    character(len=100) :: line               ! line read from file
 
+    ! Open the file to count the number of lines (i.e., objects)
+    open(unit=unit, file=objectfile, status='old', action='read')
 
-    ! Initialize the objects
-    objects(1)%mass = 1e11
-    objects(1)%position = [0.0, 1.0, 0.0]
-    objects(1)%velocity = [1.0, 0.0, 0.0]
-    objects(1)%acceleration = [0.0, 0.0, 0.0]
+    ! Count the number of lines
+    n = 0
+    do while (.true.)
+        read(unit, '(A)', iostat=i) line
+        if (i /= 0) exit
+        n = n + 1
+    end do
 
-    objects(2)%mass = 1e11
-    objects(2)%position = [0.0, -1.0, 0.0]
-    objects(2)%velocity = [-1.0, .0, 0.0]
-    objects(2)%acceleration = [0.0, 0.0, 0.0]
+    ! Subtracting the header line from .txt file
+    n = n - 1
 
-    objects(3)%mass = 1e11
-    objects(3)%position = [0.0, 0.0, 1.0]
-    objects(3)%velocity = [0.0, 1.0, 0.0]
-    objects(3)%acceleration = [0.0, 0.0, 0.0]
+    close(unit)
 
-    objects(4)%mass = 1e11
-    objects(4)%position = [0.0, 0.0, -1.0]
-    objects(4)%velocity = [0.0, -1.0, 0.0]
-    objects(4)%acceleration = [0.0, 0.0, 0.0]
+    ! Allocate arrays based on the number of objects
+    allocate(objects(n))
+    allocate(positions(n, 3))
+  
+    ! Open the file containing initial conditions
+    open(unit=unit, file='data/objects/multiyObj_test.txt', status='old', action='read')
+
+    ! Read the initial conditions from the file
+    do i = 1, n 
+        read(unit, *) objects(i)%mass, objects(i)%position, objects(i)%velocity, objects(i)%acceleration
+    end do
+
+    close(unit)
+
+    print *, "Initializing with ", n, " objects"
 
 
 
