@@ -103,12 +103,12 @@ program main
     use netcdf_writer
     implicit none
 
-    integer, parameter :: n = 2             ! number of bodies
-    real(8), parameter :: dt = 0.01        ! time step
+    integer, parameter :: n = 4             ! number of bodies
+    real(8), parameter :: dt = 0.00001        ! time step
     real(8) :: distance_magnitude           ! distance between two bodies
     real(8), dimension(3) :: update         ! update to acceleration
     integer :: i, j, k                         ! loop variables
-    integer :: nsteps = 200               ! number of time steps
+    integer :: nsteps = 400000               ! number of time steps
     type(Obj), dimension(n) :: objects      ! array of objects
     character(len=50) :: outfile = "data/pos.nc"
     real(8), dimension(n, 3) :: positions   ! positions array for NetCDF writing
@@ -125,13 +125,26 @@ program main
     objects(2)%velocity = [-1.0, .0, 0.0]
     objects(2)%acceleration = [0.0, 0.0, 0.0]
 
+    objects(3)%mass = 1e11
+    objects(3)%position = [0.0, 0.0, 1.0]
+    objects(3)%velocity = [0.0, 1.0, 0.0]
+    objects(3)%acceleration = [0.0, 0.0, 0.0]
+
+    objects(4)%mass = 1e11
+    objects(4)%position = [0.0, 0.0, -1.0]
+    objects(4)%velocity = [0.0, -1.0, 0.0]
+    objects(4)%acceleration = [0.0, 0.0, 0.0]
+
+
+
+
 
     ! Create the NetCDF file
     call create_netcdf(outfile, n, nsteps)
 
     ! Time evolution
     do i = 1, nsteps
-        print *, "----------------- Step: ", i
+        !print *, "----------------- Step: ", i
         ! Compute the acceleration
         do j = 1, n
             ! Initaly acc is ero
@@ -140,16 +153,19 @@ program main
             do k = 1, n
                 
                 if (j /= k) then
-                    print *, j, k
+                    !print *, j, k
                     
                     ! Compute the distance between the two bodies
-                    print *, "Distance:", norm2(objects(j)%position - objects(k)%position)
+                    !print *, "Distance:", norm2(objects(j)%position - objects(k)%position)
                     distance_magnitude = norm2(objects(j)%position - objects(k)%position)
+                    if (distance_magnitude < 1e-1) then
+                        distance_magnitude = 1e-1
+                    end if
                     ! Compute update to accelleration
                     update = G * objects(k)%mass * (objects(j)%position - objects(k)%position) / distance_magnitude**3
                     ! Update acceleration is set to zero for each iterion but updated die each influencing body
                     objects(j)%acceleration = objects(j)%acceleration - ( update)
-                    print *, " resulting acceleration: ", objects(j)%acceleration
+                    !print *, " resulting acceleration: ", objects(j)%acceleration
                 end if
             end do
         end do
@@ -165,10 +181,10 @@ program main
         ! Update the position
         do j = 1, n
             !print *,  ( objects(j)%velocity)
-            print *, "velocity of object     ", j, " is: ", objects(j)%velocity
-            print *, "old position of object ", j, " is: ", objects(j)%position
+            !print *, "velocity of object     ", j, " is: ", objects(j)%velocity
+            !print *, "old position of object ", j, " is: ", objects(j)%position
             objects(j)%position = objects(j)%position + dt * objects(j)%velocity
-            print *, "new position of object ", j, " is: ", objects(j)%position
+            !print *, "new position of object ", j, " is: ", objects(j)%position
             
         end do
 
