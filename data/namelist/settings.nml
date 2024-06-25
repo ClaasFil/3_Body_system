@@ -4,4 +4,5 @@ dt=0.001
 nsteps=10000
 outfile="data/pos.nc"
 objectfile="data/objects/multiyObj_test.txt"
+omp_num_threads=1
 /

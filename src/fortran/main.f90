@@ -96,17 +96,18 @@ module namelist_utilities
     contains
 
     
-    subroutine read_namelist(file_path, n_max, dt, nsteps, outfile, objectfile)
+    subroutine read_namelist(file_path, n_max, dt, nsteps, outfile, objectfile, omp_num_threads)
         use, intrinsic :: iso_fortran_env, only: stderr => error_unit
         character(len=*), intent(in)    :: file_path
         integer,          intent(inout) :: n_max
         real(8),          intent(inout) :: dt
         integer,          intent(inout) :: nsteps
         character(len=*), intent(inout) :: outfile, objectfile
+        integer,          intent(inout) :: omp_num_threads
         integer :: fu, rc
     
         ! Namelist definition.
-        namelist /INPUTS/ n_max, dt, nsteps, outfile, objectfile
+        namelist /INPUTS/ n_max, dt, nsteps, outfile, objectfile, omp_num_threads
     
         ! Check whether file exists.
         inquire (file=file_path, iostat=rc)
@@ -142,7 +143,7 @@ program main
     use namelist_utilities
     implicit none
 
-    character(len=50) :: namelistFile = "data/namelist/1big_1small.nml"
+    character(len=50) :: namelistFile = "data/namelist/1000obj.nml"
 
     integer :: n             ! number of bodies will be determent by .xt file
     integer :: n_max =  2  ! maximum number of objects will be set by name list
@@ -153,20 +154,30 @@ program main
     integer :: nsteps = 10000               ! number of time steps
     type(Obj), allocatable :: objects(:)      ! array of objects
     character(len=50) :: outfile = "data/pos.nc"
-    character(len=50) :: objectfile = "data/objects/multiyObj_test.txt"
+    character(len=50) :: objectfile = "data/objects/100obj.txt"
     real(8), allocatable :: positions(:,:)   ! positions array for NetCDF writing
     integer :: unit
     character(len=100) :: line               ! line read from file
+    integer :: start_clock, end_clock, count_rate
+    real(8) :: elapsed_time
+    integer :: nthreads, thread_id 
+    integer :: OMP_GET_THREAD_NUM, OMP_GET_NUM_THREADS
+
+   
 
 
     ! Read parameters from the namelist
-    call read_namelist(namelistFile, n_max, dt, nsteps, outfile, objectfile)
+    call read_namelist(namelistFile, n_max, dt, nsteps, outfile, objectfile, nthreads)
 
     print *, "n_max: ", n_max
     print *, "dt: ", dt
     print *, "nsteps: ", nsteps
     print *, "outfile: ", outfile
     print *, "objectfile: ", objectfile
+    print *, "nthreads: ", nthreads
+
+
+    call omp_set_num_threads(nthreads)
 
 
 
@@ -209,15 +220,19 @@ program main
 
     print *, "Initializing with ", n, " objects"
 
-
+    ! Get the start time
+    call system_clock(start_clock, count_rate)
 
     ! Create the NetCDF file
-    call create_netcdf(outfile, n, nsteps)
+    !call create_netcdf(outfile, n, nsteps)
 
     ! Time evolution
     do i = 1, nsteps
         !print *, "----------------- Step: ", i
+
         ! Compute the acceleration
+        !$OMP PARALLEL PRIVATE(j, k, distance_magnitude, update)
+        !$OMP DO
         do j = 1, n
             ! Initaly acc is ero
             objects(j)%acceleration = 0.0
@@ -241,6 +256,8 @@ program main
                 end if
             end do
         end do
+        !$OMP END DO
+        !$OMP END PARALLEL 
 
         ! Update the velocity
         do j = 1, n
@@ -261,13 +278,23 @@ program main
         end do
 
         ! Store positions for writing to NetCDF
-        do j = 1, n
-            positions(j, :) = objects(j)%position
-        end do
+        !do j = 1, n
+        !    positions(j, :) = objects(j)%position
+        !end do
 
         ! Write the positions to the NetCDF file
-        call write_to_netcdf(outfile, reshape(positions, [1, n, 3]), i)
+        !call write_to_netcdf(outfile, reshape(positions, [1, n, 3]), i)
+
+        
     end do
+
+    ! Get the end time
+    call system_clock(end_clock)
+
+    ! Calculate the elapsed time
+    elapsed_time = real(end_clock - start_clock) / real(count_rate)
+
+    print *, "Elapsed time (seconds): ", elapsed_time
 
     
 end program main

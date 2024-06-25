@@ -5,7 +5,7 @@ BIN_DIR="/home/fillies/Documents/Uni_Projects/3_Body_system/bin"
 
 # Compiler and flags
 FC="gfortran"
-FFLAGS="-O2"
+FFLAGS="-O3 -fopenmp -march=native"
 NETCDF_LIB="/usr/lib/x86_64-linux-gnu"  # Adjust as necessary
 NETCDF_INC="/usr/include"               # Adjust as necessary
 
@@ -15,6 +15,22 @@ HELPER_DIR="$SRC_DIR/helper"
 
 # Ensure the bin directory exists
 mkdir -p $BIN_DIR
+
+# Function to read the number of threads from the namelist file
+read_omp_num_threads() {
+    local namelist_file="data/namelist/settings.nml"
+    if [ -f "$namelist_file" ]; then
+        OMP_NUM_THREADS=$(grep -i 'omp_num_threads' "$namelist_file" | grep -o '[0-9]\+')
+        export OMP_NUM_THREADS
+        echo "Setting OMP_NUM_THREADS to $OMP_NUM_THREADS from namelist file"
+    else
+        echo "Namelist file not found. Using default OMP_NUM_THREADS=1"
+        export OMP_NUM_THREADS=1
+    fi
+}
+
+# Read the number of OpenMP threads from the namelist file
+read_omp_num_threads
 
 # Compile the main program
 echo "Compiling the main program..."
